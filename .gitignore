@@ -1,0 +1,8 @@
+#venv
+.venv/
+
+#secret
+.env
+
+#logs
+logs/
