@@ -1,10 +1,13 @@
 import os
 from datetime import datetime
+from timedelta import Timedelta
 from lumibot.strategies.strategy import Strategy
 from lumibot.backtesting import YahooDataBacktesting
 from lumibot.brokers import Alpaca
 from lumibot.traders import Trader
 from dotenv import load_dotenv
+from alpaca_trade_api import REST
+
 
 load_dotenv()
 
@@ -19,9 +22,21 @@ ALPACA_CRED = {"API_KEY":API_KEY,
 class MYTrader(Strategy):
     def initialize(self, symbol:str = 'SPY', cash_at_risk:float = .5):
         self.symbol = symbol
+        self.api = REST(key_id=API_KEY, secret_key=API_SECRET, base_url=BASE_URL)
         self.sleeptime = "12H"
         self.last_trade = None
         self.cash_at_risk = cash_at_risk
+
+    def get_dates(self):
+        today = self.get_datetime()
+        four_days_prior = today - Timedelta(days=4)
+        return today.strftime("%Y-%m-%d"), four_days_prior.strftime("%Y-%m-%d")
+    
+    def get_news(self):
+        end, start = self.get_dates()
+        response = self.api.get_news(symbol=self.symbol, start=start, end=end);
+        news = [ev.__dict__["_raw"]["headline"] for ev in response]
+        return news
 
     def position_sizing(self):
         cash = self.get_cash()
@@ -31,6 +46,8 @@ class MYTrader(Strategy):
 
     def on_trading_iteration(self):
         cash, last_price, quantity = self.position_sizing()
+        news = self.get_news()
+        print(news)
         order = self.create_order(
             asset=self.symbol,
             quantity=quantity,
